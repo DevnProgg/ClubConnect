@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="ClubConnect 0.1:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/ClubConnect_0_1_jar</output-path>
+    <root id="archive" name="ClubConnect 0.1.jar">
+      <element id="module-output" name="ClubConnect 0.1" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/src/libraries/jfreechart-1.5.6(1).jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/src/libraries/itextpdf-5.5.6.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
