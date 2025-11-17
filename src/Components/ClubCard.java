@@ -14,7 +14,7 @@ import Models.Club;
 import Models.ClubMember;
 import Models.User;
 import MaterialSwingUI.MaterialScrollPane;
-import  MaterialSwingUI.MaterialButton;
+import MaterialSwingUI.MaterialButton;
 import Repository.ClubMemberRepository;
 import Repository.ClubRepository;
 import Repository.ImageDatabaseHandler;
@@ -36,6 +36,9 @@ public class ClubCard extends JPanel {
     private final User currentUser;
     private List<ClubMember> clubMembers;
     private final JLabel nameValueLabel, statusValueLabel, categoryValueLabel, descriptionValueLabel;
+
+    // Store reference to the members list container
+    private JPanel membersListContainer;
 
     /**
      * Constructs a {@code ClubCard} panel initialized with club details, the current user,
@@ -80,8 +83,8 @@ public class ClubCard extends JPanel {
         buttonsPanel.setOpaque(false);
 
         if (hasPrivilege()) {
-            JButton editBtn =  new MaterialButton("Edit", new Color(25, 60, 200));
-            JButton deleteBtn =  new MaterialButton("Deactivate", new Color(180, 50, 50));
+            JButton editBtn = new MaterialButton("Edit", new Color(25, 60, 200));
+            JButton deleteBtn = new MaterialButton("Deactivate", new Color(180, 50, 50));
 
             editBtn.addActionListener(e -> onEdit());
             deleteBtn.addActionListener(e -> onDelete());
@@ -132,7 +135,7 @@ public class ClubCard extends JPanel {
             JPanel joinPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 15));
             joinPanel.setBackground(cardBg);
 
-            JButton joinButton =  new MaterialButton((isMember() ? "Leave Club" : "Join Club"), new Color(0, 128, 100));
+            JButton joinButton = new MaterialButton((isMember() ? "Leave Club" : "Join Club"), new Color(0, 128, 100));
             joinButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
             joinButton.setPreferredSize(new Dimension(150, 35));
             joinButton.addActionListener(e -> onJoin());
@@ -180,19 +183,18 @@ public class ClubCard extends JPanel {
         membersSection.add(sectionHeader);
         membersSection.add(Box.createVerticalStrut(10));
 
-        // Members list container (will be dynamically updated on filtering)
-        JPanel listContainer = new JPanel();
-        listContainer.setLayout(new BoxLayout(listContainer, BoxLayout.Y_AXIS));
-        listContainer.setBackground(memberSectionBg);
-        listContainer.setName("membersListContainer"); // later used to update dynamically
+        // Members list container - Store as instance variable
+        membersListContainer = new JPanel();
+        membersListContainer.setLayout(new BoxLayout(membersListContainer, BoxLayout.Y_AXIS));
+        membersListContainer.setBackground(memberSectionBg);
 
-        membersSection.add(listContainer);
+        membersSection.add(membersListContainer);
 
-        refreshFilteredMembers("All"); // initial load
+        // Initial load - now the container exists
+        refreshFilteredMembers("All");
 
         return membersSection;
     }
-
 
     /**
      * Creates a header panel for the members section, showing the title and current member count.
@@ -281,13 +283,12 @@ public class ClubCard extends JPanel {
         return memberItem;
     }
 
-
     /**
      * Checks if the current user is an accepted member of the club, or if they are a system administrator (roleId=1).
      *
      * @return {@code true} if the current user is an accepted member or an admin, {@code false} otherwise.
      */
-    private boolean isMember(){
+    private boolean isMember() {
         ClubMemberRepository cmr = new ClubMemberRepository(conn);
         try {
             Optional<ClubMember> member = cmr.getMemberById(currentUser.userId()).get();
@@ -325,7 +326,6 @@ public class ClubCard extends JPanel {
         }
     }
 
-
     /**
      * Handles the user's action to join or leave the club.
      * If the user is already a member, it prompts for confirmation to leave.
@@ -333,7 +333,7 @@ public class ClubCard extends JPanel {
      * The method updates the database asynchronously and shows feedback messages.
      */
     private void onJoin() {
-        if (isMember()){
+        if (isMember()) {
             int result = JOptionPane.showConfirmDialog(
                     this,
                     "Would you like to leave this club?",
@@ -366,8 +366,7 @@ public class ClubCard extends JPanel {
                     }
                 });
             }
-        }
-        else {
+        } else {
             int result = JOptionPane.showConfirmDialog(
                     this,
                     "Would you like to send a request to join this club?",
@@ -469,7 +468,8 @@ public class ClubCard extends JPanel {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
 
         Font labelFont = new Font("Segoe UI", Font.BOLD, 13);
         JLabel nameLabel = new JLabel("Club Name:");
@@ -482,12 +482,21 @@ public class ClubCard extends JPanel {
         statusLabel.setForeground(textColor);
         categoryLabel.setForeground(textColor);
 
-        panel.add(nameLabel, gbc); gbc.gridx = 1;
-        panel.add(nameField, gbc); gbc.gridx = 0; gbc.gridy++;
-        panel.add(statusLabel, gbc); gbc.gridx = 1;
-        panel.add(statusField, gbc); gbc.gridx = 0; gbc.gridy++;
-        panel.add(categoryLabel, gbc); gbc.gridx = 1;
-        panel.add(categoryField, gbc); gbc.gridx = 0; gbc.gridy++;
+        panel.add(nameLabel, gbc);
+        gbc.gridx = 1;
+        panel.add(nameField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        panel.add(statusLabel, gbc);
+        gbc.gridx = 1;
+        panel.add(statusField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        panel.add(categoryLabel, gbc);
+        gbc.gridx = 1;
+        panel.add(categoryField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
         gbc.gridwidth = 2;
         panel.add(scrollPane, gbc);
 
@@ -502,7 +511,7 @@ public class ClubCard extends JPanel {
 
         if (result == JOptionPane.OK_OPTION) {
             club = new Club(
-                    System.currentTimeMillis(),
+                    club.clubId(),
                     nameField.getText(),
                     statusField.getText(),
                     categoryField.getText(),
@@ -519,9 +528,9 @@ public class ClubCard extends JPanel {
             categoryValueLabel.setText(club.category());
             descriptionValueLabel.setText("<html><p style='width:250px; color:white;'>" + club.description() + "</p></html>");
             ClubRepository clubRepository = new ClubRepository(this.conn);
-            clubRepository.updateClub(club).thenAcceptAsync(success->{
-                if(success){
-                    SwingUtilities.invokeLater(()->{
+            clubRepository.updateClub(club).thenAcceptAsync(success -> {
+                if (success) {
+                    SwingUtilities.invokeLater(() -> {
                         JOptionPane.showMessageDialog(
                                 this,
                                 "Club information updated successfully!",
@@ -529,8 +538,8 @@ public class ClubCard extends JPanel {
                                 JOptionPane.INFORMATION_MESSAGE
                         );
                     });
-                }else{
-                    SwingUtilities.invokeLater(()->{
+                } else {
+                    SwingUtilities.invokeLater(() -> {
                         JOptionPane.showMessageDialog(
                                 this,
                                 "Club information not updated successfully!",
@@ -559,9 +568,9 @@ public class ClubCard extends JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             ClubRepository clubRepository = new ClubRepository(this.conn);
-            clubRepository.deleteClub(club.clubId()).thenAcceptAsync(success->{
-                if(success){
-                    SwingUtilities.invokeLater(()->{
+            clubRepository.deleteClub(club.clubId()).thenAcceptAsync(success -> {
+                if (success) {
+                    SwingUtilities.invokeLater(() -> {
                         JOptionPane.showMessageDialog(this, "Club deactivated successfully!", "Deactivated", JOptionPane.INFORMATION_MESSAGE);
                         Container parent = getParent();
                         if (parent != null) {
@@ -570,8 +579,8 @@ public class ClubCard extends JPanel {
                             parent.repaint();
                         }
                     });
-                }else {
-                    SwingUtilities.invokeLater(()->{
+                } else {
+                    SwingUtilities.invokeLater(() -> {
                         JOptionPane.showMessageDialog(this, "Club not deactivated successfully!", "Deactivated", JOptionPane.ERROR_MESSAGE);
                         Container parent = getParent();
                         if (parent != null) {
@@ -588,7 +597,7 @@ public class ClubCard extends JPanel {
     /**
      * Creates a simple panel displaying a label (e.g., "Name") and its corresponding value label.
      *
-     * @param label The descriptive label text.
+     * @param label      The descriptive label text.
      * @param valueLabel The {@code JLabel} containing the club attribute's value.
      * @return A {@code JPanel} formatted to display a single club field.
      */
@@ -685,7 +694,7 @@ public class ClubCard extends JPanel {
      *
      * @throws RuntimeException if the member data retrieval fails.
      */
-    private void loadMembers(){
+    private void loadMembers() {
         ClubMemberRepository clubMemberRepository = new ClubMemberRepository(this.conn);
         try {
             clubMembers = clubMemberRepository.getAllMembers(club.clubId()).get();
@@ -701,38 +710,19 @@ public class ClubCard extends JPanel {
      * @param filter The membership status to filter by, or "All" for all members.
      */
     private void refreshFilteredMembers(String filter) {
-        JPanel listContainer = (JPanel) findComponentByName(this, "membersListContainer");
-        if (listContainer == null) {
-            System.err.println("Error: Could not find 'membersListContainer' component.");
+        if (membersListContainer == null) {
+            System.err.println("Error: membersListContainer is null.");
             return;
         }
-        listContainer.removeAll();
+
+        membersListContainer.removeAll();
 
         clubMembers.stream()
                 .filter(m -> filter.equals("All") || m.membershipStatus().equalsIgnoreCase(filter))
-                .forEach(member -> listContainer.add(createMemberItem(member)));
+                .forEach(member -> membersListContainer.add(createMemberItem(member)));
 
-        listContainer.revalidate();
-        listContainer.repaint();
-    }
-
-    /**
-     * Recursively searches for a component within a container hierarchy based on its name.
-     * This is used to find the dynamically updated member list container.
-     *
-     * @param container The starting container to search within.
-     * @param name The name of the component to find.
-     * @return The found {@code Component}, or {@code null} if not found.
-     */
-    private Component findComponentByName(Container container, String name) {
-        for (Component comp : container.getComponents()) {
-            if (name.equals(comp.getName())) return comp;
-            if (comp instanceof Container found) {
-                Component result = findComponentByName(found, name);
-                if (result != null) return result;
-            }
-        }
-        return null;
+        membersListContainer.revalidate();
+        membersListContainer.repaint();
     }
 
     /**
@@ -815,6 +805,4 @@ public class ClubCard extends JPanel {
             });
         }
     }
-
-
 }

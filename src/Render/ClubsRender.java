@@ -65,7 +65,7 @@ public class ClubsRender extends PageStructure {
                     setupMetrics(clubs);
 
                     // Setup create club form in large panel
-                    setupCreateClubForm();
+                    if (user.roleId() == 1) setupCreateClubForm();
 
                     // Setup bar chart in middle panel
                     setupBarChart(clubs);
@@ -80,7 +80,7 @@ public class ClubsRender extends PageStructure {
                     setupMetrics(clubs);
 
                     // Setup create club form in large panel
-                    setupCreateClubForm();
+                    if (user.roleId() == 1) setupCreateClubForm();
 
                     // Setup bar chart in middle panel
                     setupBarChart(clubs);
@@ -384,6 +384,7 @@ public class ClubsRender extends PageStructure {
                 if(result){
                     SwingUtilities.invokeLater(()->{
                         JOptionPane.showMessageDialog(this, "Club created successfully");
+                        clubs.add(newClub);
                     });}
                 else {
                     SwingUtilities.invokeLater(()->{

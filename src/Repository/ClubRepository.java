@@ -111,17 +111,17 @@ public class ClubRepository {
                     "member_capacity=?, approved_budget=?, approved_by=?, created_date=?, created_by=? " +
                     "WHERE club_id=?";
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setLong(1, club.clubId());
-                stmt.setString(2, club.name());
-                stmt.setString(3, club.status());
-                stmt.setString(4, club.category());
-                stmt.setString(5, club.description());
-                stmt.setDouble(6, club.budgetProposal());
-                stmt.setInt(7, club.memberCapacity());
-                stmt.setDouble(8, club.approvedBudget());
-                stmt.setLong(9, club.approvedBy());
-                stmt.setString(10, club.createdDate());
-                stmt.setLong(11, club.createdBy());
+                stmt.setLong(11, club.clubId());
+                stmt.setString(1, club.name());
+                stmt.setString(2, club.status());
+                stmt.setString(3, club.category());
+                stmt.setString(4, club.description());
+                stmt.setDouble(5, club.budgetProposal());
+                stmt.setInt(6, club.memberCapacity());
+                stmt.setDouble(7, club.approvedBudget());
+                stmt.setLong(8, club.approvedBy());
+                stmt.setString(9, club.createdDate());
+                stmt.setLong(10, club.createdBy());
                 return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
                 e.printStackTrace();

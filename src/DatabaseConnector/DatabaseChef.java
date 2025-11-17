@@ -17,19 +17,6 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.Properties;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-
-import javax.swing.*;
-import java.awt.*;
-import java.io.*;
-import java.sql.*;
-import java.util.Collections;
-import java.util.Vector;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A specialized JFrame utility class designed for managing database persistence tasks,
@@ -38,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class DatabaseChef extends JFrame {
 
-    private static final String[] TABLES = {"clubs", "club_membership", "announcements", "discussion_comments", "discussion_forum", "resources", "rsvps", "system_users", "roles", "events", "budgets"};
+    private static final String[] TABLES = {"clubs", "club_membership", "announcements", "discussion_comments", "discussion_forum", "resources", "rsvps", "system_users", "roles", "events"};
 
     private final JTextField hostField = createDarkField("");
     private final JTextField portField = createDarkField("");
@@ -47,32 +34,22 @@ public class DatabaseChef extends JFrame {
     private final JPasswordField passField = new JPasswordField();
     private final JTextArea logArea = createDarkTextArea();
     private final DefaultTableModel previewModel = new DefaultTableModel();
-    // Config file path
     private static final String CONFIG_FILE = "config.properties";
     private final Properties config = new Properties();
 
-
-    // threading
     private final ExecutorService bgExecutor = Executors.newFixedThreadPool(2);
 
-    /**
-     * Constructs the {@code DatabaseChef} frame.
-     * Initializes the user interface, loads configuration, sets up action listeners,
-     * and starts an initial background task for auto-importing CSV files.
-     */
     public DatabaseChef() {
         super("Data Persistence Manager (MySQL + CSV + SQL)");
         setVisible(false);
-        new DatabaseConnector(this);
+       // new DatabaseConnector(this);
         loadConfig();
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 760);
         setLayout(new BorderLayout(8, 8));
         getContentPane().setBackground(new Color(35, 35, 35));
 
-        /*
-           TOP DATABASE CONFIG PANEL
-         */
+        // TOP DATABASE CONFIG PANEL
         JPanel top = new JPanel(new GridLayout(2, 6, 10, 10));
         top.setBackground(new Color(45, 45, 45));
         top.setBorder(BorderFactory.createTitledBorder("Database Connection"));
@@ -87,20 +64,17 @@ public class DatabaseChef extends JFrame {
 
         add(top, BorderLayout.NORTH);
 
-
-        /*
-           CENTER (BUTTONS + TABLE PREVIEW)
-        */
+        // CENTER (BUTTONS + TABLE PREVIEW)
         JPanel center = new JPanel(new BorderLayout());
         center.setOpaque(false);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.LEFT));
         btns.setOpaque(false);
 
-        JButton createBtn     = createButton("Create DB & Tables");
-        JButton importCsvBtn  = createButton("Import CSV Files");
-        JButton importSqlBtn  = createButton("Import SQL Dump");
-        JButton exportCsvBtn  = createButton("Export DB → CSV");
+        JButton createBtn = createButton("Create DB & Tables");
+        JButton importCsvBtn = createButton("Import CSV Files");
+        JButton importSqlBtn = createButton("Import SQL Dump");
+        JButton exportCsvBtn = createButton("Export DB → CSV");
 
         btns.add(createBtn);
         btns.add(importCsvBtn);
@@ -114,18 +88,12 @@ public class DatabaseChef extends JFrame {
         center.add(new MaterialScrollPane(previewTable), BorderLayout.CENTER);
         add(center, BorderLayout.CENTER);
 
-
-        /*
-           LOG AREA (BOTTOM)
-*/
+        // LOG AREA (BOTTOM)
         JScrollPane scrollLog = new MaterialScrollPane(logArea);
         scrollLog.setBorder(BorderFactory.createTitledBorder("Log Output"));
         add(scrollLog, BorderLayout.SOUTH);
 
-
-        /*
-           SIDE PANEL (Preview buttons)
-      */
+        // SIDE PANEL (Preview buttons)
         JPanel side = new JPanel(new GridLayout(0, 1, 6, 6));
         side.setBackground(new Color(45, 45, 45));
         side.setBorder(BorderFactory.createTitledBorder("Preview Tables"));
@@ -138,24 +106,13 @@ public class DatabaseChef extends JFrame {
 
         add(side, BorderLayout.EAST);
 
-
-        /*
-           ACTION LISTENERS
-     */
-        createBtn.addActionListener(e -> bgExecutor.submit(this::testAndLaunchLogin));
+        // ACTION LISTENERS
+        createBtn.addActionListener(e -> bgExecutor.submit(this::autoCheckAndConnect));
         importCsvBtn.addActionListener(e -> bgExecutor.submit(this::importCsvIfPresent));
         importSqlBtn.addActionListener(e -> chooseSqlImport());
         exportCsvBtn.addActionListener(e -> bgExecutor.submit(this::exportAllTablesToCsv));
 
-
-        /*
-           ON WINDOW CLOSE: Export CSV in background
- */
-        /**
-         * Sets up a {@code WindowListener} to save the configuration and attempt to export
-         * all database tables to CSV files upon closing the window, limiting the background task
-         * to 30 seconds to ensure timely shutdown.
-         */
+        // ON WINDOW CLOSE: Export CSV in background
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
                 saveConfig();
@@ -166,37 +123,21 @@ public class DatabaseChef extends JFrame {
             }
         });
 
-
-        /*
-           AUTO-CSV IMPORT AT STARTUP */
-        /**
-         * Submits an asynchronous task to check for and import existing CSV files on startup.
-         */
+        // AUTO-CHECK AND CONNECT AT STARTUP
         bgExecutor.submit(() -> {
-            log("Auto-import: searching for CSV files...");
-            importCsvIfPresent();
+            log("Auto-checking database and tables...");
+            autoCheckAndConnect();
         });
     }
 
-    /* DARK UI HELPERS  */
+    /* DARK UI HELPERS */
 
-    /**
-     * Creates a new {@code JTextField} and applies the dark theme styling.
-     *
-     * @param text The initial text for the field.
-     * @return A styled {@code JTextField}.
-     */
     private static JTextField createDarkField(String text) {
         JTextField f = new JTextField(text);
         styleDark(f);
         return f;
     }
 
-    /**
-     * Creates a new {@code JTextArea} for logging and applies the dark theme styling.
-     *
-     * @return A styled {@code JTextArea}.
-     */
     private static JTextArea createDarkTextArea() {
         JTextArea a = new JTextArea();
         styleDark(a);
@@ -206,11 +147,6 @@ public class DatabaseChef extends JFrame {
         return a;
     }
 
-    /**
-     * Applies a standard dark theme style (colors, borders, cursor) to a Swing component.
-     *
-     * @param comp The {@code JComponent} to style.
-     */
     private static void styleDark(JComponent comp) {
         comp.setForeground(Color.WHITE);
         comp.setBackground(new Color(55, 55, 55));
@@ -218,14 +154,6 @@ public class DatabaseChef extends JFrame {
         comp.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
-    /**
-     * Adds a label and its corresponding input field (JComponent) to a parent panel,
-     * typically used for the connection configuration section.
-     *
-     * @param parent The {@code JPanel} (usually using {@code GridLayout}) to add components to.
-     * @param label The text for the label.
-     * @param field The input {@code JComponent} (e.g., {@code JTextField} or {@code JPasswordField}).
-     */
     private void addFieldRow(JPanel parent, String label, JComponent field) {
         JLabel lbl = new JLabel(label);
         lbl.setForeground(Color.WHITE);
@@ -233,12 +161,6 @@ public class DatabaseChef extends JFrame {
         parent.add(field);
     }
 
-    /**
-     * Creates a styled button with dark theme colors and hover effects.
-     *
-     * @param text The text to display on the button.
-     * @return A styled {@code JButton}.
-     */
     private JButton createButton(String text) {
         JButton b = new JButton(text);
         b.setForeground(Color.WHITE);
@@ -252,7 +174,6 @@ public class DatabaseChef extends JFrame {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 b.setBackground(new Color(95, 95, 95));
             }
-
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 b.setBackground(new Color(70, 70, 70));
             }
@@ -261,11 +182,6 @@ public class DatabaseChef extends JFrame {
         return b;
     }
 
-    /**
-     * Applies the dark theme styling to a {@code JTable}, including header and cell renderer settings.
-     *
-     * @param table The {@code JTable} to style.
-     */
     private void makeTableDark(JTable table) {
         table.setForeground(Color.WHITE);
         table.setBackground(new Color(55, 55, 55));
@@ -280,15 +196,8 @@ public class DatabaseChef extends JFrame {
         table.setDefaultRenderer(Object.class, center);
     }
 
+    /* LOGGING */
 
-    /* LOGGING*/
-
-    /**
-     * Appends a message to the log area on the Swing Event Dispatch Thread (EDT)
-     * and automatically scrolls to the bottom.
-     *
-     * @param message The log message to display.
-     */
     void log(String message) {
         SwingUtilities.invokeLater(() -> {
             logArea.append("• " + message + "\n");
@@ -296,16 +205,8 @@ public class DatabaseChef extends JFrame {
         });
     }
 
-
     /* DATABASE HELPERS */
 
-    /**
-     * Attempts to establish a JDBC {@code Connection} to the MySQL server without
-     * specifying a default database. This is used primarily for creating the database.
-     *
-     * @return A valid {@code Connection} to the MySQL server.
-     * @throws SQLException if the connection fails due to invalid credentials or host/port.
-     */
     private Connection connectNoDB() throws SQLException {
         String url = String.format("jdbc:mysql://%s:%s/?serverTimezone=UTC",
                 hostField.getText().trim(), portField.getText().trim());
@@ -317,12 +218,6 @@ public class DatabaseChef extends JFrame {
         return DriverManager.getConnection(url, props);
     }
 
-    /**
-     * Attempts to establish a JDBC {@code Connection} to the specified database.
-     *
-     * @return A valid {@code Connection} to the configured database.
-     * @throws SQLException if the connection fails (e.g., database doesn't exist, invalid credentials).
-     */
     private Connection connectWithDB() throws SQLException {
         String url = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=UTC",
                 hostField.getText().trim(), portField.getText().trim(), dbField.getText().trim());
@@ -334,170 +229,266 @@ public class DatabaseChef extends JFrame {
         return DriverManager.getConnection(url, props);
     }
 
+    /* AUTO-CHECK DATABASE AND TABLES */
+
+    /**
+     * Automatically checks if the database exists and if all required tables exist.
+     * If they don't exist, creates them. Then attempts to connect to the database.
+     */
+    private void autoCheckAndConnect() {
+        try {
+            log("Checking MySQL server connection...");
+
+            // Step 1: Connect to MySQL server (without database)
+            try (Connection conn = connectNoDB()) {
+                log("✓ MySQL server connected successfully");
+
+                // Step 2: Check if database exists
+                String dbName = dbField.getText().trim();
+                boolean dbExists = databaseExists(conn, dbName);
+
+                if (!dbExists) {
+                    log("⚠ Database '" + dbName + "' does not exist. Creating...");
+                    createDatabaseAndTables();
+                } else {
+                    log("✓ Database '" + dbName + "' exists");
+
+                    // Step 3: Check if all tables exist
+                    if (!allTablesExist()) {
+                        log("⚠ Some tables are missing. Creating tables...");
+                        createMissingTables();
+                    } else {
+                        log("✓ All required tables exist");
+                    }
+                }
+
+                // Step 4: Auto-import CSV files if present
+                importCsvIfPresent();
+
+                // Step 5: Test final connection and launch login
+                testAndLaunchLogin();
+
+            }
+
+        } catch (SQLException e) {
+            log("✗ MySQL server connection failed: " + e.getMessage());
+            log("Please verify your credentials and try again.");
+        }
+    }
+
+    /**
+     * Checks if a database exists on the MySQL server.
+     */
+    private boolean databaseExists(Connection conn, String dbName) throws SQLException {
+        try (ResultSet rs = conn.getMetaData().getCatalogs()) {
+            while (rs.next()) {
+                if (rs.getString(1).equalsIgnoreCase(dbName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if all required tables exist in the database.
+     */
+    private boolean allTablesExist() {
+        try (Connection conn = connectWithDB()) {
+            DatabaseMetaData meta = conn.getMetaData();
+
+            for (String table : TABLES) {
+                try (ResultSet rs = meta.getTables(null, null, table, new String[]{"TABLE"})) {
+                    if (!rs.next()) {
+                        log("  Missing table: " + table);
+                        return false;
+                    }
+                }
+            }
+            return true;
+
+        } catch (SQLException e) {
+            log("Error checking tables: " + e.getMessage());
+            return false;
+        }
+    }
 
     /* DB + TABLE CREATION */
 
-    /**
-     * Executes SQL commands to ensure the configured database exists and that all required
-     * application tables are created if they do not already exist.
-     */
     private void createDatabaseAndTables() {
         try (Connection conn = connectNoDB(); Statement st = conn.createStatement()) {
 
             String dbName = dbField.getText().trim();
-            log("Ensuring database exists: " + dbName);
+            log("Creating database: " + dbName);
 
-            // Step 1: Create the database if it doesn't exist
             st.executeUpdate("CREATE DATABASE IF NOT EXISTS `" + dbName + "` CHARACTER SET utf8mb4");
+            log("✓ Database created");
 
-            try (Connection dbConn = connectWithDB(); Statement s2 = dbConn.createStatement()) {
-                log("Connected. Ensuring tables exist...");
-                // Step 2: Create all required application tables with IF NOT EXISTS
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `clubs` (
-                           `Club_ID` bigint(20) UNSIGNED NOT NULL,
-                           `Name` varchar(200) NOT NULL,
-                           `Status` varchar(50) DEFAULT 'Active',
-                           `Category` varchar(100) DEFAULT NULL,
-                           `Description` text DEFAULT NULL,
-                           `Budget_Proposal` decimal(12,2) DEFAULT NULL,
-                           `Member_Capacity` int(11) DEFAULT NULL,
-                           `Approved_Budget` decimal(12,2) DEFAULT NULL,
-                           `Approved_By` int(11) DEFAULT NULL,
-                           `Logo` longblob DEFAULT NULL,
-                           `Logo_Type` varchar(50) DEFAULT NULL,
-                           `Logo_Size` int(11) DEFAULT NULL,
-                           `Created_Date` timestamp NULL DEFAULT current_timestamp(),
-                           `Created_By` int(11) DEFAULT NULL
-                         )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `club_membership` (
-                          `Membership_ID` bigint(20) UNSIGNED NOT NULL,
-                          `User_ID` int(11) NOT NULL,
-                          `Club_ID` int(11) NOT NULL,
-                          `Membership_Status` varchar(50) DEFAULT 'Pending',
-                          `Membership_Role` varchar(100) DEFAULT 'Member',
-                          `Application_Date` timestamp NULL DEFAULT current_timestamp(),
-                          `Approved_Date` timestamp NULL DEFAULT NULL,
-                          `Approved_By` int(11) DEFAULT NULL,
-                          `Left_Date` timestamp NULL DEFAULT NULL,
-                          `Rejection_Reason` text DEFAULT NULL
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `events` (
-                          `Event_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Title` varchar(255) NOT NULL,
-                          `Type` varchar(100) DEFAULT NULL,
-                          `Description` text DEFAULT NULL,
-                          `Date` date NOT NULL,
-                          `Status` varchar(50) DEFAULT 'Scheduled',
-                          `Start_Time` time DEFAULT NULL,
-                          `End_Time` time DEFAULT NULL,
-                          `Resource_ID` int(11) DEFAULT NULL,
-                          `Is_Budget_Requested` tinyint(1) DEFAULT 0,
-                          `Budget_Amount` decimal(12,2) DEFAULT NULL,
-                          `Budget_Status` varchar(50) DEFAULT NULL,
-                          `Approved_By` int(11) DEFAULT NULL,
-                          `Created_Date` timestamp NULL DEFAULT current_timestamp(),
-                          `Created_By` int(11) DEFAULT NULL,
-                          `Club_ID` int(11) DEFAULT NULL
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `announcements` (
-                          `Announcement_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Club_ID` int(11) DEFAULT NULL,
-                          `Created_By` int(11) DEFAULT NULL,
-                          `Content` text NOT NULL,
-                          `Title` varchar(255) NOT NULL,
-                          `Target_Audience` varchar(100) DEFAULT NULL,
-                          `Expiry_Date` date DEFAULT NULL,
-                          `Created_Date` timestamp NULL DEFAULT current_timestamp()
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `discussion_comments` (
-                          `Comment_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Message` text NOT NULL,
-                          `User_ID` int(11) NOT NULL,
-                          `Discussion_ID` int(11) NOT NULL,
-                          `TimeStamp` timestamp NULL DEFAULT current_timestamp()
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `discussion_forum` (
-                          `Discussion_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Title` varchar(255) NOT NULL,
-                          `Message` text NOT NULL,
-                          `TimeStamp` timestamp NULL DEFAULT current_timestamp(),
-                          `Club_ID` int(11) DEFAULT NULL
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `resources` (
-                          `Resource_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Name` varchar(200) NOT NULL,
-                          `Type` varchar(100) DEFAULT NULL,
-                          `Capacity` int(11) DEFAULT NULL,
-                          `Is_Available` tinyint(1) DEFAULT 1,
-                          `Location` varchar(255) DEFAULT NULL,
-                          `Description` text DEFAULT NULL,
-                          `Created_Date` timestamp NULL DEFAULT current_timestamp(),
-                          `Updated_Date` timestamp NULL DEFAULT current_timestamp()
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `roles` (
-                          `Role_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Role_Name` varchar(100) NOT NULL,
-                          `Description` text DEFAULT NULL,
-                          `Created_Date` timestamp NULL DEFAULT current_timestamp()
-                        )
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `rsvps` (
-                          `RSVP_ID` bigint(20) UNSIGNED NOT NULL,
-                          `User_ID` int(11) NOT NULL,
-                          `Event_ID` int(11) NOT NULL,
-                          `Status` varchar(50) DEFAULT 'Pending',
-                          `Date` timestamp NULL DEFAULT current_timestamp(),
-                          `Attendance_Marked` tinyint(1) DEFAULT 0
-                        )\s
-                        """);
-                s2.executeUpdate("""
-                        CREATE TABLE IF NOT EXISTS `system_users` (
-                          `User_ID` bigint(20) UNSIGNED NOT NULL,
-                          `Full_Names` varchar(200) NOT NULL,
-                          `Email` varchar(255) NOT NULL,
-                          `Username` varchar(100) NOT NULL,
-                          `Password_Hash` varchar(255) NOT NULL,
-                          `Role_ID` int(11) DEFAULT 4,
-                          `Profile_Picture` longblob DEFAULT NULL,
-                          `Profile_Picture_Type` varchar(50) DEFAULT NULL,
-                          `Profile_Picture_Size` int(11) DEFAULT NULL,
-                          `Status` varchar(50) DEFAULT 'Active',
-                          `Registration_Date` timestamp NULL DEFAULT current_timestamp()
-                        )
-                        """);
-
-                log("Tables ensured (clubs, members, events, budgets)");
-            }
+            createMissingTables();
 
         } catch (SQLException ex) {
-            log(" Database creation error: " + ex.getMessage());
+            log("✗ Database creation error: " + ex.getMessage());
             ex.printStackTrace();
         }
     }
 
-
-    /* CSV IMPORT  */
-
     /**
-     * Checks for the existence of CSV files matching the table names in the root directory
-     * and attempts to import any found CSV file into the corresponding database table.
+     * Creates all missing tables in the database.
      */
+    private void createMissingTables() {
+        try (Connection dbConn = connectWithDB(); Statement s2 = dbConn.createStatement()) {
+            log("Creating tables...");
+
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `clubs` (
+                       `Club_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                       `Name` varchar(200) NOT NULL,
+                       `Status` varchar(50) DEFAULT 'Active',
+                       `Category` varchar(100) DEFAULT NULL,
+                       `Description` text DEFAULT NULL,
+                       `Budget_Proposal` decimal(12,2) DEFAULT NULL,
+                       `Member_Capacity` int(11) DEFAULT NULL,
+                       `Approved_Budget` decimal(12,2) DEFAULT NULL,
+                       `Approved_By` int(11) DEFAULT NULL,
+                       `Logo` longblob DEFAULT NULL,
+                       `Logo_Type` varchar(50) DEFAULT NULL,
+                       `Logo_Size` int(11) DEFAULT NULL,
+                       `Created_Date` timestamp NULL DEFAULT current_timestamp(),
+                       `Created_By` int(11) DEFAULT NULL
+                     )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `club_membership` (
+                      `Membership_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `User_ID` int(11) NOT NULL,
+                      `Club_ID` int(11) NOT NULL,
+                      `Membership_Status` varchar(50) DEFAULT 'Pending',
+                      `Membership_Role` varchar(100) DEFAULT 'Member',
+                      `Application_Date` timestamp NULL DEFAULT current_timestamp(),
+                      `Approved_Date` timestamp NULL DEFAULT NULL,
+                      `Approved_By` int(11) DEFAULT NULL,
+                      `Left_Date` timestamp NULL DEFAULT NULL,
+                      `Rejection_Reason` text DEFAULT NULL
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `events` (
+                      `Event_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Title` varchar(255) NOT NULL,
+                      `Type` varchar(100) DEFAULT NULL,
+                      `Description` text DEFAULT NULL,
+                      `Date` date NOT NULL,
+                      `Status` varchar(50) DEFAULT 'Scheduled',
+                      `Start_Time` time DEFAULT NULL,
+                      `End_Time` time DEFAULT NULL,
+                      `Resource_ID` int(11) DEFAULT NULL,
+                      `Is_Budget_Requested` tinyint(1) DEFAULT 0,
+                      `Budget_Amount` decimal(12,2) DEFAULT NULL,
+                      `Budget_Status` varchar(50) DEFAULT NULL,
+                      `Approved_By` int(11) DEFAULT NULL,
+                      `Created_Date` timestamp NULL DEFAULT current_timestamp(),
+                      `Created_By` int(11) DEFAULT NULL,
+                      `Club_ID` int(11) DEFAULT NULL
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `announcements` (
+                      `Announcement_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Club_ID` int(11) DEFAULT NULL,
+                      `Created_By` int(11) DEFAULT NULL,
+                      `Content` text NOT NULL,
+                      `Title` varchar(255) NOT NULL,
+                      `Target_Audience` varchar(100) DEFAULT NULL,
+                      `Expiry_Date` date DEFAULT NULL,
+                      `Created_Date` timestamp NULL DEFAULT current_timestamp()
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `discussion_comments` (
+                      `Comment_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Message` text NOT NULL,
+                      `User_ID` int(11) NOT NULL,
+                      `Discussion_ID` int(11) NOT NULL,
+                      `TimeStamp` timestamp NULL DEFAULT current_timestamp()
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `discussion_forum` (
+                      `Discussion_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Title` varchar(255) NOT NULL,
+                      `Message` text NOT NULL,
+                      `TimeStamp` timestamp NULL DEFAULT current_timestamp(),
+                      `Club_ID` int(11) DEFAULT NULL
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `resources` (
+                      `Resource_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Name` varchar(200) NOT NULL,
+                      `Type` varchar(100) DEFAULT NULL,
+                      `Capacity` int(11) DEFAULT NULL,
+                      `Is_Available` tinyint(1) DEFAULT 1,
+                      `Location` varchar(255) DEFAULT NULL,
+                      `Description` text DEFAULT NULL,
+                      `Created_Date` timestamp NULL DEFAULT current_timestamp(),
+                      `Updated_Date` timestamp NULL DEFAULT current_timestamp()
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `roles` (
+                      `Role_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Role_Name` varchar(100) NOT NULL,
+                      `Description` text DEFAULT NULL,
+                      `Created_Date` timestamp NULL DEFAULT current_timestamp()
+                    )
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `rsvps` (
+                      `RSVP_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `User_ID` int(11) NOT NULL,
+                      `Event_ID` int(11) NOT NULL,
+                      `Status` varchar(50) DEFAULT 'Pending',
+                      `Date` timestamp NULL DEFAULT current_timestamp(),
+                      `Attendance_Marked` tinyint(1) DEFAULT 0
+                    ) 
+                    """);
+            s2.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `system_users` (
+                      `User_ID` bigint(20) UNSIGNED NOT NULL PRIMARY KEY,
+                      `Full_Names` varchar(200) NOT NULL,
+                      `Email` varchar(255) NOT NULL,
+                      `Username` varchar(100) NOT NULL,
+                      `Password_Hash` varchar(255) NOT NULL,
+                      `Role_ID` int(11) DEFAULT 4,
+                      `Profile_Picture` longblob DEFAULT NULL,
+                      `Profile_Picture_Type` varchar(50) DEFAULT NULL,
+                      `Profile_Picture_Size` int(11) DEFAULT NULL,
+                      `Status` varchar(50) DEFAULT 'Active',
+                      `Registration_Date` timestamp NULL DEFAULT current_timestamp()
+                    )
+                    """);
+            s2.executeUpdate("""
+                    INSERT IGNORE INTO `resources` (`Resource_ID`, `Name`, `Type`, `Capacity`, `Is_Available`, `Location`, `Description`, `Created_Date`, `Updated_Date`) VALUES
+                    (1, 'Main Auditorium', 'Venue', 300, 1, 'Building A, Floor 1', NULL, '2025-11-06 08:02:59', '2025-11-06 08:02:59'),
+                    (2, 'Conference Room A', 'Meeting Room', 30, 1, 'Building B, Floor 2', NULL, '2025-11-06 08:02:59', '2025-11-06 08:02:59'),
+                    (3, 'Photography Studio', 'Studio', 15, 1, 'Arts Building, Floor 3', NULL, '2025-11-06 08:02:59', '2025-11-06 08:02:59'),
+                    (4, 'Computer Lab 1', 'Lab', 50, 1, 'Tech Building, Floor 1', NULL, '2025-11-06 08:02:59', '2025-11-06 08:02:59');
+                    """);
+            s2.executeUpdate("""
+                    INSERT IGNORE INTO `roles` (`Role_ID`, `Role_Name`, `Description`, `Created_Date`) VALUES
+                    (1, 'admin', 'Full system access and management', '2025-11-06 08:02:59'),
+                    (4, 'guest', 'General student user', '2025-11-06 08:02:59');
+                    """);
+
+            log("✓ Tables created successfully");
+        } catch (SQLException ex) {
+            log("✗ Table creation error: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    /* CSV IMPORT */
+
     private void importCsvIfPresent() {
         try {
             for (String table : TABLES) {
@@ -513,13 +504,6 @@ public class DatabaseChef extends JFrame {
         }
     }
 
-    /**
-     * Imports data from a single CSV file into the specified database table using JDBC batching.
-     * Assumes the first line of the CSV is the header (column names).
-     *
-     * @param table The name of the database table.
-     * @param csvPath The {@code Path} to the CSV file.
-     */
     private void importTableFromCsv(String table, Path csvPath) {
         try (Connection conn = connectWithDB()) {
             conn.setAutoCommit(false);
@@ -542,9 +526,6 @@ public class DatabaseChef extends JFrame {
                         ps.setString(i + 1, (i < parts.length) ? parts[i] : null);
                     }
                     ps.addBatch();
-                    /**
-                     * Executes the batch of prepared statements after every 500 rows to optimize insertion speed.
-                     */
                     if (count % 500 == 0) ps.executeBatch();
                     count++;
                 }
@@ -558,13 +539,8 @@ public class DatabaseChef extends JFrame {
         }
     }
 
-
     /* CSV EXPORT */
 
-    /**
-     * Exports the data from all configured database tables into separate CSV files.
-     * Files are saved in a subdirectory named "exported_csv".
-     */
     private void exportAllTablesToCsv() {
         try {
             Files.createDirectories(Path.of("exported_csv"));
@@ -574,20 +550,12 @@ public class DatabaseChef extends JFrame {
             for (String t : TABLES) {
                 exportTableToCsv(conn, t, Path.of("exported_csv", t + ".csv"));
             }
-            log(" Export complete → exported_csv folder.");
+            log("✓ Export complete → exported_csv folder.");
         } catch (SQLException ex) {
-            log(" Export error: " + ex.getMessage());
+            log("✗ Export error: " + ex.getMessage());
         }
     }
 
-    /**
-     * Exports data from a single database table to a specified CSV file.
-     * Handles comma escaping for CSV integrity.
-     *
-     * @param conn The active database {@code Connection}.
-     * @param table The name of the table to export.
-     * @param outFile The {@code Path} where the CSV file should be written.
-     */
     private void exportTableToCsv(Connection conn, String table, Path outFile) {
         try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery("SELECT * FROM " + table)) {
 
@@ -595,23 +563,16 @@ public class DatabaseChef extends JFrame {
             int cols = md.getColumnCount();
 
             try (BufferedWriter w = Files.newBufferedWriter(outFile)) {
-
-                // Write header row
                 for (int i = 1; i <= cols; i++) {
                     w.write(md.getColumnName(i));
                     if (i < cols) w.write(",");
                 }
                 w.write("\n");
 
-                // Write data rows
                 int count = 0;
                 while (rs.next()) {
                     for (int i = 1; i <= cols; i++) {
                         String val = rs.getString(i);
-                        /**
-                         * Logic to handle CSV escaping: enclose values containing commas in double quotes
-                         * and escape existing double quotes by doubling them.
-                         */
                         if (val != null && val.contains(",")) val = "\"" + val.replace("\"", "\"\"") + "\"";
                         w.write(val == null ? "" : val);
                         if (i < cols) w.write(",");
@@ -619,21 +580,16 @@ public class DatabaseChef extends JFrame {
                     w.write("\n");
                     count++;
                 }
-                log(" Exported " + count + " rows from " + table);
+                log("✓ Exported " + count + " rows from " + table);
             }
 
         } catch (Exception e) {
-            log(" Failed to export " + table);
+            log("✗ Failed to export " + table);
         }
     }
 
+    /* SQL FILE IMPORT */
 
-    /* SQL FILE IMPORT  */
-
-    /**
-     * Opens a {@code JFileChooser} to allow the user to select an SQL dump file
-     * and then submits the import task to the background executor.
-     */
     private void chooseSqlImport() {
         JFileChooser chooser = new JFileChooser();
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
@@ -642,12 +598,6 @@ public class DatabaseChef extends JFrame {
         }
     }
 
-    /**
-     * Imports SQL commands from a selected file, executing them line by line or statement by statement.
-     * Handles multiline statements by checking for the statement terminator (';').
-     *
-     * @param file The {@code Path} to the SQL dump file.
-     */
     private void importSqlFile(Path file) {
         log("Importing SQL dump: " + file.getFileName());
 
@@ -658,11 +608,9 @@ public class DatabaseChef extends JFrame {
             String line;
             while ((line = r.readLine()) != null) {
                 line = line.trim();
-                // Skip empty lines or comments
                 if (line.isEmpty() || line.startsWith("--") || line.startsWith("#")) continue;
 
                 batch.append(line).append(" ");
-                // Execute when a statement terminator is found
                 if (line.endsWith(";")) {
                     try {
                         st.execute(batch.toString());
@@ -673,22 +621,15 @@ public class DatabaseChef extends JFrame {
                 }
             }
 
-            log(" SQL import done.");
+            log("✓ SQL import done.");
 
         } catch (Exception e) {
-            log(" SQL import error: " + e.getMessage());
+            log("✗ SQL import error: " + e.getMessage());
         }
     }
 
-
     /* TABLE PREVIEW */
 
-    /**
-     * Clears the current table preview and asynchronously loads up to 200 rows of data
-     * from the specified table for display in the {@code JTable} component.
-     *
-     * @param table The name of the database table to preview.
-     */
     private void previewTable(String table) {
         SwingUtilities.invokeLater(() -> {
             previewModel.setColumnCount(0);
@@ -716,18 +657,16 @@ public class DatabaseChef extends JFrame {
                 }
 
                 SwingUtilities.invokeLater(() -> previewModel.setDataVector(data, colNames));
-                log(" Previewed table: " + table + " (" + data.size() + " rows)");
+                log("✓ Previewed table: " + table + " (" + data.size() + " rows)");
 
             } catch (SQLException ex) {
-                log(" Preview failed: " + ex.getMessage());
+                log("✗ Preview failed: " + ex.getMessage());
             }
         });
     }
-    /**
-     * Loads database connection settings from the configuration file ({@value #CONFIG_FILE}).
-     * If the file is not found, default settings are used. The loaded settings are then
-     * used to populate the UI fields.
-     */
+
+    /* CONFIG MANAGEMENT */
+
     private void loadConfig() {
         try (FileInputStream fis = new FileInputStream(CONFIG_FILE)) {
             config.load(fis);
@@ -741,7 +680,6 @@ public class DatabaseChef extends JFrame {
             config.setProperty("db.password", "root");
         }
 
-        // Update UI fields
         hostField.setText(config.getProperty("db.host"));
         portField.setText(config.getProperty("db.port"));
         dbField.setText(config.getProperty("db.name"));
@@ -749,10 +687,6 @@ public class DatabaseChef extends JFrame {
         passField.setText(config.getProperty("db.password"));
     }
 
-    /**
-     * Saves the current database connection settings from the UI fields back to the
-     * configuration file ({@value #CONFIG_FILE}).
-     */
     private void saveConfig() {
         config.setProperty("db.host", hostField.getText());
         config.setProperty("db.port", portField.getText());
@@ -768,28 +702,22 @@ public class DatabaseChef extends JFrame {
         }
     }
 
-    /**
-     * Attempts to connect to the configured database. On success, it saves the configuration
-     * and launches the main application {@code LoginFrame}, closing the current setup window.
-     * On failure, it logs the error.
-     */
     private void testAndLaunchLogin() {
         log("Testing database connection...");
 
         try {
             Connection conn = connectWithDB();
-            log(" DATABASE CONNECTED SUCCESSFULLY!");
+            log("✓ DATABASE CONNECTED SUCCESSFULLY!");
 
-            saveConfig();  // save config on success
+            saveConfig();
 
             SwingUtilities.invokeLater(() -> {
-                dispose(); // close DatabaseChef window
-                new LoginFrame(conn).setVisible(true); // launch login
+                dispose();
+                new LoginFrame(conn).setVisible(true);
             });
 
         } catch (SQLException e) {
-            log(" Database connection failed: " + e.getMessage());
+            log("✗ Database connection failed: " + e.getMessage());
         }
     }
-
 }

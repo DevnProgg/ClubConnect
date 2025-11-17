@@ -1,6 +1,7 @@
 package Render;
 
 import Components.EventCalendarPanel;
+import Models.ClubMember;
 import Models.Event;
 import Models.Resource;
 import Models.User;
@@ -37,6 +38,7 @@ public class EventsRender extends PageStructure {
     private final Connection conn;
     private final User user;
     private final EventRepository eventrepo;
+    private ClubMember member ;
 
     /**
      * Constructs the {@code EventsRender} page.
@@ -64,6 +66,12 @@ public class EventsRender extends PageStructure {
             throw new RuntimeException(e);
         }
 
+        var memRepo = new ClubMemberRepository(conn);
+        memRepo.getMemberById(user.userId()).thenAcceptAsync(member->{
+            if (member.isPresent()){
+                this.member = member.get();
+            }
+        });
 
         /**
          * Asynchronously fetches all events from the database.
@@ -79,7 +87,7 @@ public class EventsRender extends PageStructure {
                     setupMetrics(events);
 
                     // Setup create event form in large panel
-                    setupCreateEventForm();
+                    if (user.roleId() == 1 || member.membershipRole().equalsIgnoreCase("leader"))setupCreateEventForm();
 
                     // Setup event carousel in bottom panel
                     setupEventCalendar(events);
@@ -92,7 +100,7 @@ public class EventsRender extends PageStructure {
                     setupMetrics(events);
 
                     // Setup create event form in large panel
-                    setupCreateEventForm();
+                    if (user.roleId() == 1 || member.membershipRole().equalsIgnoreCase("leader"))setupCreateEventForm();
 
                     // Setup event carousel in bottom panel
                     setupEventCalendar(events);

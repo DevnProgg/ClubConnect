@@ -30,7 +30,7 @@ public class DashboardFrame extends JFrame {
 
     // Menu buttons to track selection
     private JButton[] menuButtons;
-    private final String[] menuItems = {"Dashboard", "Clubs", "Users", "Events", "Discussions"};
+    private String[] menuItems;
 
     /**
      * Constructs the main dashboard frame, initializing the UI components and data handlers.
@@ -47,7 +47,12 @@ public class DashboardFrame extends JFrame {
         this.user = user;
         imageHandler = new ImageDatabaseHandler(conn);
         this.names = user.fullNames();
-
+        if(user.roleId() == 1){
+            this.menuItems = new String[]{"Dashboard", "Clubs", "Users", "Events", "Discussions"};
+        }
+        else{
+            this.menuItems = new String[]{"Dashboard", "Clubs", "Events", "Discussions"};
+        }
         // Main container
         JPanel mainPanel = new JPanel(new BorderLayout());
         Color darkBg = new Color(45, 45, 45);
